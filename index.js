@@ -144,7 +144,7 @@ app.post("/calculateCalories", (req, res) => {
       Dancing: 5.5,
       Hiking: 5.0,
     };
-    
+
     const factor = baseFactors[exercise] || 5.0;
     function getIntensityMultiplier(intensityValue) {
       if (intensityValue <= 5) {
@@ -161,6 +161,69 @@ app.post("/calculateCalories", (req, res) => {
   } catch (error) {
     console.error("Error calculating calories:", error);
     res.status(500).json({ error: "Error calculating calories" });
+  }
+});
+
+// New endpoint: Get Opinion on Last 14 Days Activity with Goals (Fine-Tuned)
+app.post("/activityOpinion", async (req, res) => {
+  try {
+    const userInput = req.body;
+    const { last14Activities, last14Ratings, last14Times, goals } = userInput;
+
+    // Define a fine-tuned system prompt that includes the user goals and specific tone/length instructions
+    const systemPromptOpinion = {
+      text:
+        'You are "healthleh", a personal activity coach with a positive tone. Analyze the user\'s last 14 days activity data provided in the fields "last14Activities", "last14Ratings", "last14Times", and consider the user goals provided in "goals". ' +
+        "Provide a concise overall opinion on the user’s current activity performance and list short, actionable suggestions for improvement based on their goals. " +
+        "Ensure your opinion and recommendations are brief and clear. " +
+        'Output your recommendation as a single JSON object with exactly two keys: "activity_opinion" (a string summarizing your opinion) and "improvement_suggestions" (an array of strings, each being a suggestion).'
+    };
+
+    // Build dynamic prompt parts using available fields
+    const dynamicParts = [];
+    if (last14Activities) {
+      dynamicParts.push({ text: `Last 14 Activities: ${last14Activities}` });
+    }
+    if (last14Ratings) {
+      dynamicParts.push({ text: `Last 14 Ratings: ${last14Ratings}` });
+    }
+    if (last14Times) {
+      dynamicParts.push({ text: `Last 14 Times: ${last14Times}` });
+    }
+    if (goals) {
+      dynamicParts.push({ text: `User Goals: ${goals}` });
+    }
+
+    const parts = [systemPromptOpinion, ...dynamicParts];
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts }],
+      generationConfig: {
+        temperature: 1,
+        topP: 0.95,
+        topK: 40,
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            activity_opinion: { type: "string" },
+            improvement_suggestions: {
+              type: "array",
+              items: { type: "string" },
+            },
+          },
+          required: ["activity_opinion", "improvement_suggestions"],
+        },
+      },
+    });
+
+    const opinionText = result.response.text();
+    const opinion = JSON.parse(opinionText);
+    res.json(opinion);
+  } catch (error) {
+    console.error("Error generating activity opinion:", error);
+    res.status(500).json({ error: "Error generating activity opinion" });
   }
 });
 
