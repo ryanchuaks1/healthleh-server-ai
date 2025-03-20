@@ -183,7 +183,8 @@ app.post("/activityOpinion", async (req, res) => {
         "Identify any gaps between their current routine and their goals, and provide clear, actionable suggestions that directly help the user work towards achieving those goals. " +
         "Make sure your recommendations are specific and targeted, ensuring every suggestion is a step toward closing the gap between current performance and desired outcomes. " +
         'Output your recommendation as a single JSON object with exactly two keys: "activity_opinion" (a string summarizing your opinion) and "improvement_suggestions" (an array of strings, each being a suggestion). Limit the Activity opinion to 200 words and up to 5 suggestion 50 words each. ' +
-        "Remember to maintain a positive and encouraging tone throughout your response, and keep your suggestions focused on the user's goals and how they can improve their activity routine to better align with those goals.",
+        "Encourage any repeated exercises in succession which could be a sign of a routine and habit forming, and suggest ways to improve or change the routine to keep it fresh and engaging. " +
+        "Remember to keep a positive and encouraging tone throughout, focusing on the progress made and the potential for further improvement.",
     };
     
 
