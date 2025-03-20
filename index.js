@@ -55,11 +55,12 @@ const systemPrompt = {
     '1. Analyze the user\'s history:\n   - "Last 14 Times": Time stamps of past exercises. Consider whether there is a time-of-day preference and how that might affect exercise performance.\n   - "Last 14 Distances": Distance data for each session.\n   - "Last 14 Exercises": The type of exercise performed (e.g., Longer Distance Walking, Climbing Stairs, etc.).\n   - "Last 14 Ratings": User satisfaction ratings (e.g., on a scale of 1-5).\n\n' +
     "2. Decide on one physical activity recommendation:\n   - Use these exercise suggestions as a baseline: Longer Distance Walking, Climbing Stairs, Jumping Jacks, Running, Burpees.\n   - Note: Exercises like Longer Distance Walking, Paced Walking, and Climbing Stairs are preferred when the user is farther from home, while Jumping Jacks, Running, and Burpees are better when closer.\n   - IMPORTANT: If the user's recent history shows consistent dissatisfaction (e.g., low ratings) with a particular exercise, do not recommend that exercise again. Instead, either select a different option from the baseline list or, if none seem acceptable, propose a new exercise idea that is reasonable given the context.\n\n" +
     "3. Choose an IoT trigger for reminders:\n   - Options include: Phone (full screen notification), Watch (vibrate and notify), Light (flash lights), Smart TV (display message \"It's time for your exercise\").\n   - To build habits, use the same reminder consistently unless the user's history indicates it's time for a change.\n\n" +
-    '4. Output your recommendation as a single JSON object with exactly two keys:\n   - "exercise_recommendation": a JSON object with keys "recommendation_1", "recommendation_2", and "recommendation_3".\n   - "recommended_iot_devices": a JSON object mapping each device to its trigger.\n\nExample output:\n{\n  "exercise_recommendation": {\n    "recommendation_1": "Longer Distance Walking",\n    "recommendation_2": "Paced Walking",\n    "recommendation_3": "Climbing Stairs"\n  },\n  "recommended_iot_devices": {\n    "Phone": "full screen notification",\n    "Watch": "vibrate and notify"\n  }\n}\n\nRemember to analyze the "Last 14" fields to determine if the current routine is effective or if a change is needed. If the user consistently provides low ratings for the recommended exercises, avoid suggesting those again by either choosing a different option from the baseline list or by proposing an entirely new exercise idea that might better suit the users preferences. Also, consider the times at which the user exercises to see if there is a preferred time that should influence the recommendation.',
+    '4. Output your recommendation as a single JSON object with exactly two keys:\n   - "exercise_recommendation": a JSON object with keys "recommendation_1", "recommendation_2", and "recommendation_3".\n   - "recommended_iot_devices": a JSON object mapping each device to its trigger.\n\nRemember to analyze the "Last 14" fields to determine if the current routine is effective or if a change is needed. If the user consistently provides low ratings back to back for the recommended exercises, avoid suggesting those again by either choosing a different option from the baseline list or by proposing an entirely new exercise idea that might better suit the users preferences. Also, consider the times at which the user exercises to see if there is a preferred time that should influence the recommendation.',
 };
 
 // Function to build the dynamic prompt from user input and combine it with system and fine-tuning parts
 async function run(userInput) {
+  console.log("User Input:", userInput);
   const dynamicParts = [];
   if (userInput.timeTriggered) {
     dynamicParts.push({ text: `Time Triggered ${userInput.timeTriggered}` });
@@ -84,11 +85,13 @@ async function run(userInput) {
   }
 
   const parts = [systemPrompt, ...fineTuningParts, ...dynamicParts];
-
+  // Log the last few parts (e.g., last 3 parts)
+  console.log("Last few prompt parts:", parts.slice(-3));
   const result = await model.generateContent({
     contents: [{ role: "user", parts }],
     generationConfig,
   });
+  console.log("Result:", result.response.text());
   return result.response.text();
 }
 
@@ -106,6 +109,7 @@ app.use(express.json());
 
 app.use(express.json());
 app.post("/recommendation", async (req, res) => {
+  console.log("Received request:", req.body);
   try {
     const userInput = req.body;
     const recommendationText = await run(userInput);
@@ -167,17 +171,21 @@ app.post("/calculateCalories", (req, res) => {
 // New endpoint: Get Opinion on Last 14 Days Activity with Goals (Fine-Tuned)
 app.post("/activityOpinion", async (req, res) => {
   try {
+    console.log("Received request:", req.body);
     const userInput = req.body;
     const { last14Activities, last14Ratings, last14Times, goals } = userInput;
 
     // Define a fine-tuned system prompt that includes the user goals and specific tone/length instructions
     const systemPromptOpinion = {
       text:
-        'You are "healthleh", a personal activity coach with a positive tone. Analyze the user\'s last 14 days activity data provided in the fields "last14Activities", "last14Ratings", "last14Times", and consider the user goals provided in "goals". ' +
-        "Provide a concise overall opinion on the user’s current activity performance and list short, actionable suggestions for improvement based on their goals. " +
-        "Ensure your opinion and recommendations are brief and clear. " +
-        'Output your recommendation as a single JSON object with exactly two keys: "activity_opinion" (a string summarizing your opinion) and "improvement_suggestions" (an array of strings, each being a suggestion).'
+        'You are "healthleh", a personal activity coach with a positive tone. Analyze the user\'s last 14 days activity data provided in the fields "last14Activities", "last14Ratings", and "last14Times", and consider the user goals provided in "goals". ' +
+        "Provide a concise overall opinion on the user's current activity performance, with a strong focus on how well their activities align with their stated goals. " +
+        "Identify any gaps between their current routine and their goals, and provide clear, actionable suggestions that directly help the user work towards achieving those goals. " +
+        "Make sure your recommendations are specific and targeted, ensuring every suggestion is a step toward closing the gap between current performance and desired outcomes. " +
+        'Output your recommendation as a single JSON object with exactly two keys: "activity_opinion" (a string summarizing your opinion) and "improvement_suggestions" (an array of strings, each being a suggestion). Limit the Activity opinion to 200 words and up to 5 suggestion 50 words each. ' +
+        "Remember to maintain a positive and encouraging tone throughout your response, and keep your suggestions focused on the user's goals and how they can improve their activity routine to better align with those goals.",
     };
+    
 
     // Build dynamic prompt parts using available fields
     const dynamicParts = [];
