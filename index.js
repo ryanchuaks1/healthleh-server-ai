@@ -107,7 +107,10 @@ app.use(
 );
 app.use(express.json());
 
-app.use(express.json());
+app.get("/", (req, res) => {
+  res.send("Server is running!");
+});
+
 app.post("/recommendation", async (req, res) => {
   console.log("Received request:", req.body);
   try {
